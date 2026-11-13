@@ -269,13 +269,54 @@ function renderScene(time) {
           const normalZ = nz * cos - nx * sin;
           if (face !== 4 && normalZ <= 0) continue;
           const point = project(x + gift.x, y, z + gift.z);
-          const ribbon = Math.abs(u) < 4 || (face === 4 && Math.abs(z) < 4);
+          // Broad vertical straps and a horizontal belt meet on every side.
+          const ribbon = Math.abs(u) <= 5.5 || (face === 4
+            ? Math.abs(z) <= 5.5
+            : Math.abs(y - (bottom - gift.height * .5)) <= 5);
           const brightness = face === 4 ? 1 : .82 + .18 * normalZ;
-          const glyphs = ribbon ? '#=+' : '%#@%';
+          const glyphs = ribbon ? '##=' : '%#@%';
           const glyphIndex = Math.abs(Math.round(u / 4) + Math.round(v / 5) * 3 + face) % glyphs.length;
           put(point.x, point.y, point.z, glyphs[glyphIndex],
-            rgb(ribbon ? gift.ribbon : gift.color, brightness));
+            rgb(ribbon ? gift.ribbon : gift.color, ribbon ? 1 : brightness), ribbon ? 2 : 0);
         }
+      }
+    }
+
+    // Four folded ribbon loops make a bow that stays visible as the box turns.
+    const bowReveal = smooth((time - TIMING.gifts - index * .25 - .45) / .4);
+    if (bowReveal > 0) {
+      const lid = bottom - gift.height;
+      const silk = gift.ribbon.map(v => Math.round(v * .78 + 255 * .22));
+      function bowPoint(x, y, z, glyph, highlight = false) {
+        const point = project(gift.x + x * bowReveal, lid + y * bowReveal,
+          gift.z + z * bowReveal);
+        put(point.x, point.y, point.z + 1.5, glyph,
+          rgb(highlight ? silk : gift.ribbon), 3);
+      }
+      for (let loop = 0; loop < 4; loop++) {
+        const angle = loop * Math.PI / 2 + Math.PI / 4;
+        const dx = Math.cos(angle), dz = Math.sin(angle);
+        for (let t = 0; t < TAU; t += .1) {
+          const reach = 10 * (1 - Math.cos(t));
+          const lift = -5 - 8 * (1 - Math.cos(t)) + 6 * Math.sin(t);
+          for (let edge = -2.5; edge <= 2.5; edge += 2.5) {
+            bowPoint(dx * reach - dz * edge, lift, dz * reach + dx * edge,
+              t < Math.PI ? '@' : '#', t < Math.PI);
+          }
+        }
+      }
+      // Two short tails lie across the lid below the bow.
+      for (const side of [-1, 1]) {
+        for (let t = 0; t <= 1; t += .08) {
+          for (let edge = -2.5; edge <= 2.5; edge += 2.5) {
+            bowPoint(side * (4 + t * 15) + edge, -2 - Math.sin(t * Math.PI) * 4,
+              side * (3 + t * 12), '=', true);
+          }
+        }
+      }
+      // A bright central knot joins the loops and the crossed straps.
+      for (let x = -4; x <= 4; x += 3) {
+        for (let z = -4; z <= 4; z += 3) bowPoint(x, -8, z, '#', true);
       }
     }
   }
