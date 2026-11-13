@@ -18,7 +18,7 @@ function smooth(value) {
   return x * x * (3 - 2 * x);
 }
 let width = 0, height = 0, dpr = 1, last = 0, frame = 0;
-let groundCache = null;
+const groundCache = new WeakMap();
 let seed = 2026;
 function random() {
   seed = (seed * 1664525 + 1013904223) >>> 0;
@@ -116,16 +116,16 @@ function resize() {
   canvas.width = Math.round(width * dpr);
   canvas.height = Math.round(height * dpr);
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-  groundCache = null;
+  groundCache.delete(canvas);
 }
 new ResizeObserver(resize).observe(canvas);
 
 // A snowy clearing on a horizontal plane. Cache its thousands of ASCII flakes.
-function snowGround(scale, cx, top) {
+function snowGround(scale, cx, top, target, ratio) {
   const surface = document.createElement('canvas');
-  surface.width = canvas.width; surface.height = canvas.height;
+  surface.width = target.width; surface.height = target.height;
   const paint = surface.getContext('2d');
-  paint.setTransform(dpr, 0, 0, dpr, 0, 0);
+  paint.setTransform(ratio, 0, 0, ratio, 0, 0);
   paint.textAlign = 'center'; paint.textBaseline = 'middle';
   paint.font = `bold ${6.2 * scale}px monospace`;
   for (let z = -540; z <= 560; z += 30) {
@@ -146,7 +146,9 @@ function snowGround(scale, cx, top) {
   return surface;
 }
 
-function renderScene(time) {
+function renderScene(time, target = canvas, logicalWidth = width, logicalHeight = height, ratio = dpr) {
+  const ctx = target.getContext('2d');
+  const width = logicalWidth, height = logicalHeight;
   ctx.fillStyle = '#080d18';
   ctx.fillRect(0, 0, width, height);
   const scale = Math.min(width / 540, (height - 35) / 650);
@@ -187,8 +189,8 @@ function renderScene(time) {
   }
 
   // The dense white snowfield spreads around the base and behind the presents.
-  if (!groundCache) groundCache = snowGround(scale, cx, top);
-  ctx.drawImage(groundCache, 0, 0, width, height);
+  if (!groundCache.has(target)) groundCache.set(target, snowGround(scale, cx, top, target, ratio));
+  ctx.drawImage(groundCache.get(target), 0, 0, width, height);
 
   // Branches grow from the bottom upward, with a brief white leading edge.
   for (let y = 435; y < 494; y += 5.5) {
@@ -472,15 +474,15 @@ function capture() {
   toast('Картинка сохранена');
 }
 async function fullscreen() {
-  try {
-    if (document.fullscreenElement) await document.exitFullscreen();
-    else if (document.documentElement.requestFullscreen) await document.documentElement.requestFullscreen();
-    else toast('Полноэкранный режим недоступен в этом браузере');
-  } catch { toast('Не удалось включить полноэкранный режим'); }
+  if (document.fullscreenElement) return document.exitFullscreen();
+  if (document.fullscreenEnabled && document.documentElement.requestFullscreen) {
+    try { await document.documentElement.requestFullscreen(); return; } catch { /* Show mobile alternatives. */ }
+  }
+  document.querySelector('#view-dialog').showModal();
 }
 canvas.addEventListener('click', togglePause);
 window.addEventListener('keydown', event => {
-  if (event.altKey || event.metaKey || event.ctrlKey || event.repeat) return;
+  if (event.altKey || event.metaKey || event.ctrlKey || event.repeat || document.querySelector('dialog[open]') || event.target.closest('button,a,input')) return;
   if (event.code === 'Space') { event.preventDefault(); togglePause(); }
   if (event.code === 'KeyR') restart();
   if (event.code === 'KeyS') capture();
@@ -500,12 +502,16 @@ const codeCues = [
   [TIMING.message, '// The greeting is typed'],
   [18, 'const shown ='],
 ].map(([time, marker]) => ({ time, line: Math.max(0, source.findIndex(line => line.includes(marker))) }));
-function scrollCode(time) {
+function codeLineAt(time) {
   let index = 0;
   while (index < codeCues.length - 2 && time >= codeCues[index + 1].time) index++;
   const from = codeCues[index], to = codeCues[index + 1];
   const progress = smooth((time - from.time) / (to.time - from.time));
   const line = from.line + (to.line - from.line) * progress;
+  return line;
+}
+function scrollCode(time) {
+  const line = codeLineAt(time);
   const lineHeight = code.firstElementChild.getBoundingClientRect().height;
   const drift = Math.max(0, time - 18) * 12;
   const offset = Math.max(0, line * lineHeight + drift - code.parentElement.clientHeight * .25) % (source.length * lineHeight);
@@ -513,7 +519,7 @@ function scrollCode(time) {
 }
 function animate(now) {
   requestAnimationFrame(animate);
-  if (now - frame < 1000 / 30 - .5) return;
+  if (window.exportInProgress || now - frame < 1000 / 30 - .5) return;
   const delta = last ? Math.min((now - last) / 1000, .1) : 0;
   last = now; frame = now;
   if (!state.paused && !document.hidden) state.time += delta;
