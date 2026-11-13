@@ -2,15 +2,10 @@
 <html lang="ru">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#080d18">
-  <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <meta name="apple-mobile-web-app-title" content="Ёлка">
-  <link rel="manifest" href="manifest.webmanifest">
-  <link rel="apple-touch-icon" href="icon-192.png">
   <title>ASCII Christmas — ёлка из кода</title>
-  <link rel="stylesheet" href="style.css?v=f0428fb7c09e">
+  <link rel="stylesheet" href="style.css?v=56ac63c1f5fd">
 </head>
 <body>
   <main class="studio">
@@ -20,31 +15,12 @@
     <section class="editor" aria-label="Автоматически прокручивающийся код анимации">
       <div class="editor-bar">
         <span class="filename"><span class="file-icon">JS</span> christmas_tree.js</span>
-        <div class="screen-tools">
-          <button id="screen-button" aria-label="На весь экран" title="На весь экран"><svg viewBox="0 0 24 24"><path d="M8 4H4v4m12-4h4v4M4 16v4h4m12-4v4h-4"/></svg></button>
-          <button id="save-button" aria-label="Сохранить видео" title="Сохранить видео"><svg viewBox="0 0 24 24"><path d="M12 3v12m-4-4 4 4 4-4M4 16v5h16v-5"/></svg></button>
-        </div>
       </div>
       <div class="code-viewport" tabindex="0" aria-label="Код сцены. Пробел — пауза."><div id="code" aria-hidden="true"></div><div class="reading-line"></div></div>
 
     </section>
   </main>
-  <dialog id="view-dialog" aria-labelledby="view-title">
-    <button class="dialog-close" id="close-view" aria-label="Закрыть">×</button>
-    <h2 id="view-title">Без рамок браузера</h2>
-    <p id="install-hint">На iPhone открой страницу в Safari → «Поделиться» → «На экран Домой». Включи «Открывать как веб-приложение», если этот переключатель есть, и запускай ёлку с новой иконки. Адресной строки и нижней панели браузера не будет.</p>
-    <p>Для сохранения без обрезки создай видео: ёлка и код, 1080 × 1920, 20 секунд.</p>
-    <button class="primary-action" id="record-video">Создать видео 1080p</button>
-    <button class="secondary-action" id="cancel-recording" hidden>Отменить запись</button>
-    <p id="export-status" role="status" aria-live="polite"></p>
-    <div id="video-result" hidden>
-      <video id="video-preview" controls playsinline preload="metadata"></video>
-      <button class="primary-action" id="share-video">Сохранить / поделиться</button>
-      <button class="secondary-action" id="fullscreen-video">Видео на весь экран</button>
-    </div>
-  </dialog>
   <div id="toast" role="status"></div>
-  <script src="scene.js?v=13d96ca4d4b8"></script>
-  <script src="view.js?v=c5667fc61af7"></script>
+  <script src="scene.js?v=683dc32e890b"></script>
 </body>
 </html>
