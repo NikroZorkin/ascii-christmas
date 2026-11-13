@@ -4,8 +4,8 @@
 const canvas = document.querySelector('#tree');
 const ctx = canvas.getContext('2d');
 const TAU = Math.PI * 2;
-const GLYPHS = '***xv%*+%:;';
-const CELL = { width: 4, height: 6.4 };
+const GLYPHS = 'xvVXW%&#@o^+';
+const CELL = { width: 5.6, height: 8.8 };
 const GOLD = [255, 221, 124];
 const RED = [248, 62, 79];
 const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -48,14 +48,14 @@ function radiusAt(y) {
   return 7 + 201 * Math.pow(y, .95);
 }
 function makeTree() {
-  // A shadowed inner crown gives the branches a solid, deep-green core.
+  // A dense crown fills the silhouette with large, readable green characters.
   for (let row = 0; row < 100; row++) {
     const y = row / 99;
-    const radius = radiusAt(y) * .73;
+    const radius = radiusAt(y) * .93;
     for (let j = 0; j < Math.max(8, radius); j++) {
       needles.push({ y: y * 450, radius, angle: j / Math.max(8, radius) * TAU,
-        glyph: '.:+'[j % 3], birth: TIMING.branches + (1 - y) * 4.6,
-        snowy: false, shade: .38 });
+        glyph: GLYPHS[Math.floor(random() * GLYPHS.length)], birth: TIMING.branches + (1 - y) * 4.6,
+        snowy: false, shade: .82 + random() * .22 });
     }
   }
   // Whorls of individual branches, with light tips and gently drooping needles.
@@ -79,7 +79,7 @@ function makeTree() {
           glyph: GLYPHS[Math.floor(random() * GLYPHS.length)],
           birth: TIMING.branches + (1 - y) * 4.6 + reach * .3,
           snowy: reach > .65 && random() < .055,
-          shade: .65 + reach * .3 + random() * .23,
+          shade: .84 + reach * .18 + random() * .16,
         });
       }
     }
@@ -112,7 +112,7 @@ function resize() {
   const bounds = canvas.getBoundingClientRect();
   width = bounds.width;
   height = bounds.height;
-  dpr = Math.min(devicePixelRatio || 1, 2);
+  dpr = Math.min(devicePixelRatio || 1, 3);
   canvas.width = Math.round(width * dpr);
   canvas.height = Math.round(height * dpr);
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
@@ -202,9 +202,9 @@ function renderScene(time) {
     const a = p.angle - rotation;
     const radius = p.radius * growth;
     const z = Math.sin(a) * radius;
-    const brightness = (.62 + .38 * (Math.sin(a - .4) + 1) / 2) * p.shade;
+    const brightness = (.8 + .2 * (Math.sin(a - .4) + 1) / 2) * p.shade;
     const flash = 1 - smooth(age / .4);
-    const green = p.snowy ? [222, 240, 230] : [64, 195, 109];
+    const green = p.snowy ? [222, 240, 230] : [106, 222, 126];
     const color = green.map(v => v * brightness * (1 - flash) + 235 * flash);
     put(Math.cos(a) * radius, p.y + z * .21 + 42, z,
       flash > .35 ? '#' : p.snowy ? '*' : p.glyph, rgb(color), flash * 5);
@@ -218,8 +218,8 @@ function renderScene(time) {
     const z = Math.sin(a) * strand.radius;
     const flash = 1 - smooth(age / .25);
     put(Math.cos(a) * strand.radius, strand.y + z * .21 + 42, z + 3,
-      flash > .2 ? '#' : '~*o'[Math.floor(strand.angle * 9) % 3],
-      rgb(GOLD, .83 + .17 * (Math.sin(a) + 1) / 2), 5 + flash * 8);
+      flash > .2 ? '#' : '~-=#@~'[Math.floor(strand.angle * 13) % 6],
+      rgb([255, 233, 149], .92 + .08 * (Math.sin(a) + 1) / 2), 5 + flash * 8);
   }
 
   // Baubles appear one by one, from the lower branches to the tip.
@@ -270,7 +270,7 @@ function renderScene(time) {
           if (face !== 4 && normalZ <= 0) continue;
           const point = project(x + gift.x, y, z + gift.z);
           const ribbon = Math.abs(u) < 4 || (face === 4 && Math.abs(z) < 4);
-          const brightness = face === 4 ? .97 : .64 + .25 * normalZ;
+          const brightness = face === 4 ? 1 : .82 + .18 * normalZ;
           const glyphs = ribbon ? '#=+' : '%#@%';
           const glyphIndex = Math.abs(Math.round(u / 4) + Math.round(v / 5) * 3 + face) % glyphs.length;
           put(point.x, point.y, point.z, glyphs[glyphIndex],
@@ -296,7 +296,7 @@ function renderScene(time) {
     ctx.fillRect(cx + p.x * cellW - cellW / 2, top + p.y * cellH - cellH / 2,
       cellW + .3, cellH + .3);
   }
-  ctx.font = `${7.3 * scale}px "SFMono-Regular", Consolas, monospace`;
+  ctx.font = `500 ${10 * scale}px "SFMono-Regular", Consolas, monospace`;
   for (const p of pixels.values()) {
     ctx.fillStyle = p.color;
     ctx.shadowColor = p.color;
@@ -378,7 +378,7 @@ function renderScene(time) {
 const source = [
   '// CHRISTMAS 2026 · a winter scene in ASCII',
   '// Every branch, every light, every snowflake is a character.',
-  '', 'const TAU = Math.PI * 2;', "const GLYPHS = '***xv%*+%:;';", "const CELL = { width: 4, height: 6.4 };",
+  '', 'const TAU = Math.PI * 2;', "const GLYPHS = 'xvVXW%&#@o^+';", "const CELL = { width: 5.6, height: 8.8 };",
   'const GOLD = [255, 221, 124];', 'const RED = [248, 62, 79];', '',
   'const TIMING = ' + JSON.stringify(TIMING, null, 2) + ';',
   smooth.toString(), '', radiusAt.toString(), '', makeTree.toString(), '', snowGround.toString(), '', renderScene.toString(),
