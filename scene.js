@@ -4,9 +4,10 @@
 const canvas = document.querySelector('#tree');
 const ctx = canvas.getContext('2d');
 const TAU = Math.PI * 2;
-const GLYPHS = 'xvVWX%&#@o*+';
-const GOLD = [245, 215, 122];
-const RED = [220, 62, 74];
+const GLYPHS = '***xv%*+%:;';
+const CELL = { width: 4, height: 6.4 };
+const GOLD = [255, 221, 124];
+const RED = [248, 62, 79];
 const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
 const state = { time: reducedMotion ? 18 : 0, paused: reducedMotion };
 const TIMING = { branches: 1.2, garland: 6.2, ornaments: 8.3,
@@ -17,12 +18,13 @@ function smooth(value) {
   return x * x * (3 - 2 * x);
 }
 let width = 0, height = 0, dpr = 1, last = 0, frame = 0;
+let groundCache = null;
 let seed = 2026;
 function random() {
   seed = (seed * 1664525 + 1013904223) >>> 0;
   return seed / 4294967296;
 }
-const snow = Array.from({ length: 330 }, () => ({
+const snow = Array.from({ length: 420 }, () => ({
   x: random(), y: random(), depth: .25 + random() * .75,
   speed: .015 + random() * .03, phase: random() * TAU,
 }));
@@ -43,20 +45,43 @@ const gifts = [
 });
 
 function radiusAt(y) {
-  const tier = (y * 7) % 1;
-  return 8 + y * 205 * (.86 + .14 * tier);
+  return 7 + 201 * Math.pow(y, .95);
 }
 function makeTree() {
-  for (let row = 0; row < 86; row++) {
-    const y = row / 85;
+  // A shadowed inner crown gives the branches a solid, deep-green core.
+  for (let row = 0; row < 100; row++) {
+    const y = row / 99;
+    const radius = radiusAt(y) * .73;
+    for (let j = 0; j < Math.max(8, radius); j++) {
+      needles.push({ y: y * 450, radius, angle: j / Math.max(8, radius) * TAU,
+        glyph: '.:+'[j % 3], birth: TIMING.branches + (1 - y) * 4.6,
+        snowy: false, shade: .38 });
+    }
+  }
+  // Whorls of individual branches, with light tips and gently drooping needles.
+  for (let tier = 0; tier < 25; tier++) {
+    const y = .025 + tier / 24 * .96;
     const radius = radiusAt(y);
-    const count = Math.max(12, Math.floor(radius * 1.4));
-    for (let j = 0; j < count; j++) {
-      const angle = j / count * TAU + random() * .02;
-      needles.push({ y: y * 450, radius: radius + Math.sin(angle * 13 + row * .14) * y * 8 + random() * 7,
-        angle, glyph: GLYPHS[Math.floor(random() * GLYPHS.length)],
-        birth: TIMING.branches + (1 - y) * 4.6 + random() * .28,
-        snowy: random() < .018, shade: .6 + random() * .4 });
+    const branches = Math.floor(7 + y * 12);
+    for (let branch = 0; branch < branches; branch++) {
+      const direction = branch / branches * TAU + tier * 2.39996;
+      const length = radius * (.87 + random() * .16);
+      const count = Math.floor(45 + length * .35);
+      for (let j = 0; j < count; j++) {
+        const reach = Math.pow(random(), .55);
+        const side = (random() + random() - 1) * (3 + reach * 15);
+        const radial = length * reach;
+        const x = Math.cos(direction) * radial - Math.sin(direction) * side;
+        const z = Math.sin(direction) * radial + Math.cos(direction) * side;
+        needles.push({
+          y: y * 450 - 7 * reach + 18 * reach * reach + (random() - .5) * 10,
+          radius: Math.hypot(x, z), angle: Math.atan2(z, x),
+          glyph: GLYPHS[Math.floor(random() * GLYPHS.length)],
+          birth: TIMING.branches + (1 - y) * 4.6 + reach * .3,
+          snowy: reach > .65 && random() < .055,
+          shade: .65 + reach * .3 + random() * .23,
+        });
+      }
     }
   }
   for (let i = 0; i < 950; i++) {
@@ -64,19 +89,19 @@ function makeTree() {
     const y = .98 - progress * .92;
     const angle = y * TAU * 3.6;
     garland.push({ y: y * 450 + Math.abs(Math.sin(angle * 2.5)) * 8,
-      radius: radiusAt(y) + 11, angle,
+      radius: radiusAt(y) + 13, angle,
       birth: TIMING.garland + progress * 2.1 });
   }
   for (let i = 0; i < 170; i++) {
     const y = .06 + i / 170 * .92;
-    lights.push({ y: y * 450, radius: radiusAt(y) + 9,
+    lights.push({ y: y * 450, radius: radiusAt(y) + 17,
       angle: i * 2.39996, phase: random() * TAU,
       birth: TIMING.lights + random() * 1.1 });
   }
   for (let i = 0; i < 27; i++) {
     const y = .17 + (i / 27) * .78;
-    ornaments.push({ y: y * 450, radius: radiusAt(y) + 4,
-      angle: i * 2.39996, size: 9 + y * 7,
+    ornaments.push({ y: y * 450, radius: radiusAt(y) * .88 + 5,
+      angle: i * 2.39996, size: 8 + y * 6,
       birth: TIMING.ornaments + (1 - y) * 1.5,
       color: i % 4 === 0 ? GOLD : RED });
   }
@@ -91,24 +116,51 @@ function resize() {
   canvas.width = Math.round(width * dpr);
   canvas.height = Math.round(height * dpr);
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  groundCache = null;
 }
 new ResizeObserver(resize).observe(canvas);
 
+// A snowy clearing on a horizontal plane. Cache its thousands of ASCII flakes.
+function snowGround(scale, cx, top) {
+  const surface = document.createElement('canvas');
+  surface.width = canvas.width; surface.height = canvas.height;
+  const paint = surface.getContext('2d');
+  paint.setTransform(dpr, 0, 0, dpr, 0, 0);
+  paint.textAlign = 'center'; paint.textBaseline = 'middle';
+  paint.font = `bold ${6.2 * scale}px monospace`;
+  for (let z = -540; z <= 560; z += 30) {
+    for (let x = -470; x <= 470; x += 4.5) {
+      const r = Math.hypot(x / 440, z / 540);
+      if (r > 1.14) continue;
+      const wave = Math.sin(x * .021 + z * .018) * 1.8;
+      const hash = Math.sin(x * 12.9898 + z * 78.233) * 43758.5453;
+      const noise = hash - Math.floor(hash);
+      const edge = 1 - smooth((r - .7) / .44);
+      const shade = 1 - .18 * Math.exp(-(x * x / 13000 + z * z / 25000));
+      const brightness = edge * shade * (.62 + .38 * Math.exp(-r * r * 1.3));
+      const glyph = noise > .97 ? '*' : noise > .83 ? '+' : noise > .32 ? '-' : '·';
+      paint.fillStyle = `rgba(218,231,243,${brightness * (.7 + noise * .3)})`;
+      paint.fillText(glyph, cx + x * scale, top + (518 + z * .21 + wave) * scale);
+    }
+  }
+  return surface;
+}
+
 function renderScene(time) {
-  ctx.fillStyle = '#060a0e';
+  ctx.fillStyle = '#080d18';
   ctx.fillRect(0, 0, width, height);
   const scale = Math.min(width / 540, (height - 35) / 650);
   const cx = width / 2;
   const top = (height - 650 * scale) / 2 + 48 * scale;
   const rotation = time * Math.PI / 10;
-  const cellW = 6.3 * scale, cellH = 9 * scale;
+  const cellW = CELL.width * scale, cellH = CELL.height * scale;
   const pixels = new Map();
   const cos = Math.cos(rotation), sin = Math.sin(rotation);
 
   // A depth buffer keeps the back of the tree behind the branches.
   function put(x, y, z, glyph, color, glow = 0) {
-    const col = Math.round(x / 6.3);
-    const row = Math.round(y / 9);
+    const col = Math.round(x / CELL.width);
+    const row = Math.round(y / CELL.height);
     const key = col + ':' + row;
     if (!pixels.has(key) || pixels.get(key).z <= z) {
       pixels.set(key, { x: col, y: row, z, glyph, color, glow });
@@ -120,7 +172,7 @@ function renderScene(time) {
     return { x: rx, y: y + rz * .21, z: rz };
   }
   function rgb(color, brightness = 1) {
-    return `rgb(${color.map(v => Math.round(v * brightness)).join(',')})`;
+    return `rgb(${color.map(v => Math.min(255, Math.max(0, Math.round(v * brightness)))).join(',')})`;
   }
 
   // Snow falls at different speeds to give the scene depth.
@@ -130,26 +182,16 @@ function renderScene(time) {
     const y = ((flake.y + time * flake.speed) % 1) * height;
     const x = ((flake.x + Math.sin(time * .3 + flake.phase) * .018 + 1) % 1) * width;
     ctx.font = `${(7 + flake.depth * 6) * Math.min(1, width / 550)}px monospace`;
-    ctx.fillStyle = `rgba(201,216,225,${.15 + flake.depth * .55})`;
+    ctx.fillStyle = `rgba(220,232,247,${.2 + flake.depth * .7})`;
     ctx.fillText(flake.depth > .8 ? '+' : flake.depth > .6 ? '*' : '·', x, y);
   }
 
-  // A quiet dotted floor beneath the floating snow.
-  ctx.font = `${8 * scale}px monospace`;
-  for (let row = 0; row < 22; row++) {
-    const y = top + (380 + row * 12) * scale;
-    if (y > height) break;
-    for (let col = -60; col <= 60; col++) {
-      const x = cx + col * 11 * scale;
-      const v = Math.sin(col * 127.1 + row * 311.7) * 43758.5453;
-      const noise = v - Math.floor(v);
-      ctx.fillStyle = `rgba(118,140,169,${.09 + noise * .19})`;
-      ctx.fillText(noise > .8 ? '·' : '.', x, y);
-    }
-  }
+  // The dense white snowfield spreads around the base and behind the presents.
+  if (!groundCache) groundCache = snowGround(scale, cx, top);
+  ctx.drawImage(groundCache, 0, 0, width, height);
 
   // Branches grow from the bottom upward, with a brief white leading edge.
-  for (let y = 435; y < 494; y += 7) {
+  for (let y = 435; y < 494; y += 5.5) {
     if (time < TIMING.branches + (494 - y) * .005) continue;
     for (let x = -13; x < 14; x += 6) put(x, y, -20, '#', '#886b45');
   }
@@ -157,27 +199,27 @@ function renderScene(time) {
     const age = time - p.birth;
     if (age < 0) continue;
     const growth = .92 + .08 * smooth(age / .35);
-    const a = p.angle + rotation;
+    const a = p.angle - rotation;
     const radius = p.radius * growth;
     const z = Math.sin(a) * radius;
-    const brightness = (.4 + .6 * (Math.sin(a) + 1) / 2) * p.shade;
+    const brightness = (.62 + .38 * (Math.sin(a - .4) + 1) / 2) * p.shade;
     const flash = 1 - smooth(age / .4);
-    const green = p.snowy ? [165, 191, 177] : [53, 181, 111];
+    const green = p.snowy ? [222, 240, 230] : [64, 195, 109];
     const color = green.map(v => v * brightness * (1 - flash) + 235 * flash);
     put(Math.cos(a) * radius, p.y + z * .21 + 42, z,
-      flash > .35 ? '#' : p.glyph, rgb(color), flash * 5);
+      flash > .35 ? '#' : p.snowy ? '*' : p.glyph, rgb(color), flash * 5);
   }
 
   // The golden garland winds upward around the finished branches.
   for (const strand of garland) {
     const age = time - strand.birth;
     if (age < 0) continue;
-    const a = strand.angle + rotation;
+    const a = strand.angle - rotation;
     const z = Math.sin(a) * strand.radius;
     const flash = 1 - smooth(age / .25);
     put(Math.cos(a) * strand.radius, strand.y + z * .21 + 42, z + 3,
-      flash > .2 ? '#' : '~=@'[Math.floor(strand.angle * 9) % 3],
-      rgb(GOLD, .65 + .3 * (Math.sin(a) + 1) / 2), 3 + flash * 8);
+      flash > .2 ? '#' : '~*o'[Math.floor(strand.angle * 9) % 3],
+      rgb(GOLD, .83 + .17 * (Math.sin(a) + 1) / 2), 5 + flash * 8);
   }
 
   // Baubles appear one by one, from the lower branches to the tip.
@@ -185,17 +227,19 @@ function renderScene(time) {
     if (time < ball.birth) continue;
     const size = ball.size * smooth((time - ball.birth) / .35);
     if (size < 1) continue;
-    const a = ball.angle + rotation;
+    const a = ball.angle - rotation;
     const z = Math.sin(a) * ball.radius;
     const x = Math.cos(a) * ball.radius;
-    for (let dy = -size; dy <= size; dy += 6) {
-      for (let dx = -size; dx <= size; dx += 5) {
+    for (let dy = -size; dy <= size; dy += 3.5) {
+      for (let dx = -size; dx <= size; dx += 3) {
         const distance = (dx * dx + dy * dy) / (size * size);
         if (distance > 1) continue;
         const shade = .55 + .45 * Math.sqrt(1 - distance);
+        const highlight = Math.exp(-((dx / size + .3) ** 2 + (dy / size + .35) ** 2) * 28);
+        const color = ball.color.map(v => v * shade + (255 - v * shade) * highlight * .8);
         put(x + dx, ball.y + 42 + z * .21 + dy,
           z + Math.sqrt(1 - distance) * size,
-          distance < .3 ? '@' : '%', rgb(ball.color, shade), 2);
+          highlight > .65 ? '*' : distance < .45 ? '@' : '%', rgb(color), 4);
       }
     }
   }
@@ -239,14 +283,20 @@ function renderScene(time) {
   // The small lights switch on after the decorations are in place.
   for (const light of lights) {
     if (time < light.birth) continue;
-    const a = light.angle + rotation;
+    const a = light.angle - rotation;
     const z = Math.sin(a) * light.radius;
     const flicker = .65 + .35 * Math.sin(time * 2 + light.phase) ** 2;
     put(Math.cos(a) * light.radius, light.y + z * .21 + 42, z + 4,
-      flicker > .83 ? 'o' : '*', rgb(GOLD, flicker), z > 0 ? 7 : 0);
+      flicker > .83 ? 'o' : '*', rgb([255, 236, 172], flicker), z > 0 ? 13 : 0);
   }
 
-  ctx.font = `${10 * scale}px "SFMono-Regular", Consolas, monospace`;
+  // Opaque character cells keep the snow behind the tree and its presents.
+  ctx.fillStyle = '#080d18';
+  for (const p of pixels.values()) {
+    ctx.fillRect(cx + p.x * cellW - cellW / 2, top + p.y * cellH - cellH / 2,
+      cellW + .3, cellH + .3);
+  }
+  ctx.font = `${7.3 * scale}px "SFMono-Regular", Consolas, monospace`;
   for (const p of pixels.values()) {
     ctx.fillStyle = p.color;
     ctx.shadowColor = p.color;
@@ -260,7 +310,14 @@ function renderScene(time) {
     const ignition = smooth((time - TIMING.star) / .35);
     const flash = Math.max(0, 1 - (time - TIMING.star) / 1.1) ** 2;
     const starY = top + 19 * scale;
-    const pulse = .8 + .2 * Math.sin(time * 2.4);
+    const pulse = .9 + .1 * Math.sin(time * 2.4);
+    const halo = ctx.createRadialGradient(cx, starY, 0, cx, starY, 80 * scale);
+    halo.addColorStop(0, 'rgba(255,222,119,.22)');
+    halo.addColorStop(.3, 'rgba(255,208,86,.09)');
+    halo.addColorStop(1, 'rgba(255,208,86,0)');
+    ctx.fillStyle = halo;
+    ctx.fillRect(cx - 80 * scale, starY - 80 * scale, 160 * scale, 160 * scale);
+    ctx.font = `${8 * scale}px monospace`;
     const vertices = Array.from({ length: 10 }, (_, i) => {
       const a = -Math.PI / 2 + i * Math.PI / 5;
       const r = (i % 2 === 0 ? 31 : 13) * ignition;
@@ -277,24 +334,35 @@ function renderScene(time) {
     ctx.fillStyle = rgb(GOLD.map(v => v + (255 - v) * flash), pulse);
     ctx.shadowColor = '#ffe7a0';
     ctx.shadowBlur = (13 + 24 * flash) * scale;
-    for (let y = -30; y <= 30; y += 7) {
-      for (let x = -30; x <= 30; x += 6) {
-        if (inside(x, y)) ctx.fillText('#', cx + x * scale, starY + y * scale);
+    for (let y = -30; y <= 30; y += 5.5) {
+      for (let x = -30; x <= 30; x += 4) {
+        if (inside(x, y)) ctx.fillText(Math.abs(x) < 9 ? '@' : '*', cx + x * scale, starY + y * scale);
       }
     }
     ctx.shadowBlur = 0;
-    ctx.strokeStyle = `rgba(245,215,122,${.08 + pulse * .06})`;
-    ctx.lineWidth = .6;
-    ctx.beginPath();
-    ctx.moveTo(cx, starY - 44 * scale); ctx.lineTo(cx, starY - 90 * scale);
-    ctx.moveTo(cx - 48 * scale, starY); ctx.lineTo(cx - 105 * scale, starY);
-    ctx.moveTo(cx + 48 * scale, starY); ctx.lineTo(cx + 105 * scale, starY);
-    ctx.stroke();
+    // Fine rays are characters too, keeping the entire star in the ASCII grid.
+    ctx.font = `${7 * scale}px monospace`;
+    for (let ray = 0; ray < 8; ray++) {
+      const angle = ray * Math.PI / 4;
+      const extent = ray % 2 === 0 ? 90 : 64;
+      for (let distance = 37; distance < extent; distance += 7) {
+        const fade = (1 - distance / extent) * (.7 + flash * .3);
+        ctx.fillStyle = `rgba(255,223,133,${fade})`;
+        const glyph = ray % 4 === 0 ? '-' : ray % 4 === 2 ? '|' : ray % 4 === 1 ? '\\' : '/';
+        ctx.fillText(glyph, cx + Math.cos(angle) * distance * scale,
+          starY + Math.sin(angle) * distance * scale);
+      }
+    }
   }
 
   // The greeting is typed only when the entire tree is complete.
   const shown = Math.min(MESSAGE.length, Math.max(0, Math.floor((time - TIMING.message) * 7)));
   const spacing = 15 * scale;
+  if (shown > 0) {
+    ctx.fillStyle = 'rgba(8,13,24,.92)';
+    ctx.fillRect(cx - MESSAGE.length * spacing / 2 - 5 * scale, top + 580 * scale,
+      MESSAGE.length * spacing + 10 * scale, 19 * scale);
+  }
   ctx.font = `${11 * scale}px monospace`;
   for (let i = 0; i < shown; i++) {
     const color = [RED, GOLD, [92, 185, 123]][Math.floor(i / 2 + time * .6) % 3];
@@ -310,10 +378,10 @@ function renderScene(time) {
 const source = [
   '// CHRISTMAS 2026 · a winter scene in ASCII',
   '// Every branch, every light, every snowflake is a character.',
-  '', 'const TAU = Math.PI * 2;', "const GLYPHS = 'xvVWX%&#@o*+';",
-  'const GOLD = [245, 215, 122];', 'const RED = [220, 62, 74];', '',
+  '', 'const TAU = Math.PI * 2;', "const GLYPHS = '***xv%*+%:;';", "const CELL = { width: 4, height: 6.4 };",
+  'const GOLD = [255, 221, 124];', 'const RED = [248, 62, 79];', '',
   'const TIMING = ' + JSON.stringify(TIMING, null, 2) + ';',
-  smooth.toString(), '', radiusAt.toString(), '', makeTree.toString(), '', renderScene.toString(),
+  smooth.toString(), '', radiusAt.toString(), '', makeTree.toString(), '', snowGround.toString(), '', renderScene.toString(),
 ].join('\n').split('\n');
 function highlight(line) {
   const token = /(\/\/.*$|'[^']*'|"[^"]*"|`[^`]*`|\b(?:const|let|function|return|for|of|if|else|new|true|false)\b|\b\d+(?:\.\d+)?\b|\b\w+(?=\())/g;
@@ -404,7 +472,7 @@ function scrollCode(time) {
 }
 function animate(now) {
   requestAnimationFrame(animate);
-  if (now - frame < 1000 / 30) return;
+  if (now - frame < 1000 / 30 - .5) return;
   const delta = last ? Math.min((now - last) / 1000, .1) : 0;
   last = now; frame = now;
   if (!state.paused && !document.hidden) state.time += delta;
