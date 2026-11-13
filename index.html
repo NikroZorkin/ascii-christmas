@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#060a0e">
+  <title>ASCII Christmas — ёлка из кода</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <main class="studio">
+    <section class="scene" aria-label="Вращающаяся ёлка из ASCII-символов, со снегом и огоньками">
+      <canvas id="tree" aria-label="Ёлка постепенно собирается из символов: ветки, гирлянда, игрушки, подарки и звезда. Пробел — пауза, R — повторить.">Ваш браузер не поддерживает Canvas.</canvas>
+    </section>
+    <section class="editor" aria-label="Автоматически прокручивающийся код анимации">
+      <div class="editor-bar">
+        <span class="filename"><span class="file-icon">JS</span> christmas_tree.js</span>
+      </div>
+      <div class="code-viewport" tabindex="0" aria-label="Код сцены. Пробел — пауза."><div id="code" aria-hidden="true"></div><div class="reading-line"></div></div>
+
+    </section>
+  </main>
+  <div id="toast" role="status"></div>
+  <script src="scene.js"></script>
+</body>
+</html>
