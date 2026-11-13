@@ -1,0 +1,48 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="240" viewBox="0 0 1200 240" role="img" aria-labelledby="title description">
+  <title id="title">ASCII Christmas</title>
+  <desc id="description">Warm gold lettering and a star made of characters against a quiet midnight sky.</desc>
+  <defs>
+    <linearGradient id="night" x2="1" y2="1">
+      <stop stop-color="#0d1821" />
+      <stop offset="1" stop-color="#080d18" />
+    </linearGradient>
+    <radialGradient id="starlight">
+      <stop stop-color="#ffdd7c" stop-opacity=".13" />
+      <stop offset="1" stop-color="#ffdd7c" stop-opacity="0" />
+    </radialGradient>
+    <linearGradient id="thread">
+      <stop stop-color="#4d9b76" stop-opacity=".65" />
+      <stop offset=".6" stop-color="#4d9b76" stop-opacity=".12" />
+      <stop offset="1" stop-color="#4d9b76" stop-opacity="0" />
+    </linearGradient>
+  </defs>
+  <rect width="1200" height="240" rx="18" fill="url(#night)" />
+  <circle cx="998" cy="120" r="145" fill="url(#starlight)" />
+  <g font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif">
+    <text x="60" y="137" fill="#f0e9d7" font-size="62" font-weight="600" letter-spacing="-2.4">ASCII Christmas</text>
+  </g>
+  <path d="M62 166h620" stroke="url(#thread)" />
+  <g font-family="'SFMono-Regular', Consolas, 'Liberation Mono', monospace" font-size="12" letter-spacing="3">
+    <text x="63" y="75" fill="#85b89a">WINTER / 2026</text>
+    <text x="64" y="196" fill="#7d8e99" font-size="11" letter-spacing="2">A LITTLE LIGHT IN EVERY CHARACTER</text>
+  </g>
+  <g stroke="#e5c77c" stroke-opacity=".22" fill="none">
+    <path d="M998 31v34m0 109v35M891 119h48m118 0h48M940 61l21 23m73 70 22 23M1058 61l-21 23m-77 70-21 23" />
+  </g>
+  <g font-family="'SFMono-Regular', Consolas, 'Liberation Mono', monospace" font-size="17" font-weight="600" fill="#ffdd7c" text-anchor="middle" letter-spacing="1">
+    <text x="998" y="84">*</text>
+    <text x="998" y="102">###</text>
+    <text x="998" y="120">**##@@@##**</text>
+    <text x="998" y="138">##@@@##</text>
+    <text x="998" y="156">#@# #@#</text>
+    <text x="998" y="174">*   *</text>
+  </g>
+  <g font-family="monospace" text-anchor="middle" fill="#9bacb8">
+    <text x="767" y="61" font-size="12" opacity=".45">+</text>
+    <text x="842" y="174" font-size="9" opacity=".4">*</text>
+    <text x="1134" y="69" font-size="13" opacity=".55">*</text>
+    <text x="1148" y="189" font-size="10" opacity=".35">+</text>
+    <text x="872" y="42" font-size="12" opacity=".28">·</text>
+    <text x="747" y="208" font-size="10" opacity=".3">·</text>
+  </g>
+</svg>
